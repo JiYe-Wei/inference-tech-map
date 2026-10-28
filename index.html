@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>大模型推理技术地图</title>
+<style>
+:root{
+  color-scheme:light;
+  --ink:#2a2f3a; --paper:#fbfcfd; --grid:#e6ecf2;
+  --blue:#cfe3fb; --teal:#c8efe6; --teal-d:#1f8f7a; --yellow:#fddcb0;
+  --coral:#fad0c4; --coral-d:#c2492f; --mint:#cdeedf; --mint-d:#1e7a4c;
+  --round:"Yuanti SC","YuanTi SC","圆体-简","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --sans:"PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font:15px/1.65 var(--sans); color:var(--ink);
+  background:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px;
+}
+header{padding:40px 48px 8px; max-width:1100px}
+h1{
+  font:700 40px/1.2 var(--round); margin:0 0 10px; letter-spacing:.02em;
+  display:inline-block; padding:6px 18px 8px; background:#fff;
+  border:2px solid var(--ink); border-radius:16px; box-shadow:5px 5px 0 var(--ink);
+  transform:rotate(-1deg);
+}
+.lede{margin:18px 0 0; max-width:40em; font-size:16px}
+.hint{margin:6px 0 0; font-size:13px; opacity:.7}
+
+.stage{display:flex; align-items:flex-start; gap:0}
+.scroller{flex:1; min-width:0; overflow-x:auto; padding:20px 24px 64px 32px}
+.map{position:relative; display:grid; grid-template-columns:auto auto auto auto 326px; column-gap:34px; width:max-content; padding-top:36px}
+.map svg{position:absolute; inset:0; width:100%; height:100%; pointer-events:none; overflow:visible}
+.col{display:flex; flex-direction:column; gap:22px; justify-content:center; position:relative; z-index:1}
+.col-title{position:absolute; top:-36px; left:0; font:700 15px/1.3 var(--round); opacity:.75}
+
+.node{
+  all:unset; box-sizing:border-box; cursor:pointer; display:block;
+  background:#fff; border:1.5px solid var(--ink); border-radius:14px;
+  padding:9px 12px 10px; box-shadow:3px 3px 0 var(--ink);
+  font:700 15px/1.35 var(--round); position:relative;
+  transition:opacity .2s, transform .15s, box-shadow .15s;
+}
+.node:not(.fam) small{white-space:nowrap}
+.node small{display:block; font:400 12px/1.45 var(--sans); opacity:.75; margin-top:2px}
+.node:focus-visible,.chip:focus-visible{outline:3px solid #3b82f6; outline-offset:3px}
+.node:hover{transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--ink)}
+.l0{background:var(--blue)} .l1{background:var(--teal)} .l2{background:var(--yellow)} .l3{background:var(--coral)}
+
+.fam{background:#fff; padding:0; overflow:hidden}
+.fam .fh{all:unset; box-sizing:border-box; cursor:pointer; display:block; width:100%; padding:8px 12px; background:var(--teal); border-bottom:1.5px solid var(--ink)}
+.fam .fh:focus-visible{outline:3px solid #3b82f6; outline-offset:-3px}
+.fam .fh small{display:inline; margin-left:8px}
+.chips{display:flex; flex-wrap:wrap; gap:6px; padding:9px 10px 10px}
+.chip{
+  all:unset; box-sizing:border-box; cursor:pointer;
+  font:600 13px/1.2 var(--sans); padding:5px 10px; border:1.2px solid var(--ink);
+  border-radius:999px; background:#fff;
+}
+.chip:hover{background:var(--teal)}
+.chip.on{background:var(--ink); color:#fff}
+
+/* 选中态 */
+.map.focus .node, .map.focus .chip{opacity:.28}
+.map.focus .node.lit, .map.focus .node.lit .chip{opacity:1}
+.map.focus .node.lit .chip.dim{opacity:.45}
+.node.sel{box-shadow:5px 5px 0 var(--ink); transform:translate(-2px,-2px)}
+.node.good::after,.node.bad::after{
+  position:absolute; top:-11px; right:-10px; width:22px; height:22px; border-radius:50%;
+  border:1.5px solid var(--ink); font:700 13px/19px var(--sans); text-align:center; color:#fff;
+}
+.node.good::after{content:"✓"; background:var(--mint-d)}
+.node.bad::after{content:"!"; background:var(--coral-d)}
+.map.focus .node.good,.map.focus .node.bad{opacity:1}
+.edge{fill:none; stroke:var(--ink); stroke-width:1.3; opacity:.22; transition:opacity .2s}
+.edge.lit{opacity:.95; stroke-width:2.2}
+.map.focus .edge:not(.lit){opacity:.06}
+
+/* 详情面板 */
+aside{
+  position:sticky; top:0; width:340px; flex:none; height:100vh; overflow-y:auto;
+  padding:24px 24px 40px; background:#fff; border-left:1.5px solid var(--ink);
+}
+aside h2{font:700 24px/1.3 var(--round); margin:4px 0 10px}
+.kind{display:inline-block; font:600 12px/1 var(--sans); padding:5px 10px; border:1.2px solid var(--ink); border-radius:999px}
+.chain{font-size:13px; line-height:1.7; padding:8px 10px; background:#f4f7fa; border-radius:10px; margin:0 0 14px}
+.chain b{font-weight:600}
+aside p{margin:0 0 12px}
+aside h3{font:700 15px/1.3 var(--round); margin:18px 0 8px}
+.fx{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 6px}
+.tag{white-space:nowrap; display:inline-block; font:600 12px/1 var(--sans); padding:5px 9px; border-radius:999px; border:1.2px solid var(--ink)}
+.tag.g{background:var(--mint)} .tag.b{background:var(--coral)}
+.cost{font-size:14px; padding:8px 10px; border-left:3px solid var(--coral-d); background:#fff5f2; border-radius:0 8px 8px 0; margin:6px 0 0}
+.refs{list-style:none; padding:0; margin:0}
+.refs li{margin:0 0 9px; padding-left:14px; position:relative; font-size:14px; line-height:1.5}
+.refs li::before{content:""; position:absolute; left:0; top:.6em; width:6px; height:6px; border-radius:50%; background:var(--teal-d)}
+.refs a{color:#14625a; text-decoration-thickness:1px; text-underline-offset:3px}
+.refs span{display:block; font-size:12px; opacity:.6}
+.sub{display:flex; flex-wrap:wrap; gap:6px}
+.close{all:unset; cursor:pointer; font-size:13px; padding:4px 10px; border:1.2px solid var(--ink); border-radius:999px}
+.close:focus-visible,.fold:focus-visible{outline:3px solid #3b82f6}
+.bar{float:right; display:flex; gap:6px; margin-left:8px}
+.fold{all:unset; cursor:pointer; font-size:13px; padding:4px 10px; border:1.2px solid var(--ink); border-radius:999px; display:none}
+aside h2:focus{outline:none}
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+
+@media (max-width:900px){
+  header{padding:24px 20px 4px} h1{font-size:30px}
+  .lede{font-size:15px}
+  .scroller{padding:16px 20px 46vh; scroll-padding:0 20px}
+  aside.idle{height:auto; max-height:132px}
+  aside{position:fixed; left:0; right:0; bottom:0; top:auto; width:auto; height:42vh; padding:16px 18px 28px; border-left:0; border-top:1.5px solid var(--ink); border-radius:18px 18px 0 0; box-shadow:0 -4px 0 var(--ink); z-index:5}
+  aside h2{font-size:20px}
+  .fold{display:inline-block}
+  aside.folded{height:auto; max-height:none; overflow:hidden}
+  aside.folded > :not(.bar):not(h2):not(.kind){display:none}
+  aside.folded h2{margin-bottom:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>大模型推理技术地图</h1>
+  <p class="lede">从 Transformer 往右读：模型结构决定推理怎么跑，推理方式决定用什么指标衡量，指标卡在某个瓶颈上，瓶颈逼出了各种优化方法。</p>
+  <p class="hint">点任意节点，看它从哪来、往哪去；点优化方法，看它改善哪个指标、牺牲了什么。按 Esc 取消。</p>
+</header>
+<div class="stage">
+  <div class="scroller"><div class="map" id="map"><svg id="wires" aria-hidden="true"></svg></div></div>
+  <aside id="panel" aria-label="详情"></aside>
+</div>
+<div id="live" class="sr" aria-live="polite"></div>
+<script>
+const AX = "https://arxiv.org/abs/";
+const COLS = ["根源", "两个阶段", "评估指标", "卡在哪里", "优化方法"];
+const KIND = {0:["根源","l0"],1:["推理阶段","l0"],2:["评估指标","l2"],3:["瓶颈","l3"],4:["优化方法","l1"]};
+
+const N = {
+  transformer:{col:0,t:"Transformer",s:"注意力 + FFN 堆叠",
+    d:"一切的起点。每层都要做 QKV 投影、注意力和 FFN，注意力要让每个 token 看见之前所有 token，这一项随上下文长度增长。",
+    r:[["Attention Is All You Need",AX+"1706.03762","2017，原始论文"],
+       ["How To Scale Your Model：Transformer 一章","https://jax-ml.github.io/scaling-book/transformers/","参数量、FLOPs 的逐项清点"]]},
+  decoder:{col:0,t:"Decoder-only",s:"因果掩码，只看过去",
+    d:"去掉 encoder，只留带因果掩码的 decoder。掩码保证第 i 个 token 只看前 i 个，所以已经算过的 token 的 K、V 永远不会再变，这是能缓存它们的前提。生成只能一个一个往后吐（自回归）。",
+    r:[["Transformer Inference Arithmetic（kipply）","https://kipp.ly/p/transformer-inference-arithmetic","推理算术的经典入门"]]},
+  kv:{col:0,t:"KV Cache",s:"用显存换重复计算",
+    d:"把历史 token 的 K、V 存下来，下一步只算新 token。记 L 为当前上下文长度（prompt 加已生成的部分），每步注意力的计算量从 O(L²) 降到 O(L)，代价是显存：每个 token 要存 2 × 层数 × KV 头数 × head_dim × 字节数。它让推理分成了 prefill 和 decode 两种截然不同的负载，也把显存变成了后面几乎所有优化的主战场。",
+    r:[["Transformer Inference Arithmetic（kipply）","https://kipp.ly/p/transformer-inference-arithmetic","KV 大小与带宽的算法"],
+       ["How To Scale Your Model：Inference 一章","https://jax-ml.github.io/scaling-book/inference/","KV、batch 与 roofline 放在一起推"]]},
+  prefill:{col:1,t:"Prefill",s:"整段 prompt 一次算完",
+    d:"一次前向处理全部 prompt token 并写入 KV Cache，这时 L 就是 prompt 长度。权重读一次被 L 个 token 复用，算术强度随 L 上升，L 上千时是计算受限。",
+    r:[["LLM Inference Performance Engineering（Databricks）","https://www.databricks.com/blog/llm-inference-performance-engineering-best-practices","prefill 看 MFU、decode 看 MBU"],
+       ["Efficiently Scaling Transformer Inference",AX+"2211.05102","PaLM 推理的分阶段分析"]]},
+  decode:{col:1,t:"Decode",s:"每步只出 1 个 token",
+    d:"每步只算 batch 个 token，但整份权重和全部 KV 都要读一遍。上下文较短、权重读取占主导时，算术强度约等于 batch size，batch 小就是访存受限：加算力没用，要加带宽或者让每次读取被更多 token 摊薄。上下文变长后情况变了：每个请求的 KV 只被它自己用，batch 摊不薄，注意力部分的强度和 batch 无关。",
+    r:[["LLM Inference Unveiled: Survey and Roofline Model Insights",AX+"2402.16363","用 roofline 看各类优化"],
+       ["Know your rooflines!",AX+"2505.16346","JSSC 2025，加速器视角的 roofline 扩展"]]},
+
+  ttft:{col:2,t:"TTFT",s:"首 token 时延",
+    d:"从请求到达到吐出第一个 token。≈ 排队时间 + prefill 计算。长 prompt、排队、prefix 没命中都会拉长它。",
+    r:[["LLM Inference Performance Engineering（Databricks）","https://www.databricks.com/blog/llm-inference-performance-engineering-best-practices","四个指标的定义"],
+       ["Modal：How to Benchmark","https://modal.com/llm-almanac/how-to-benchmark","压测口径"]]},
+  tpot:{col:2,t:"TPOT / ITL",s:"相邻输出 token 的间隔",
+    d:"相邻两个输出 token 的时间间隔，主要由 decode 一步要读多少字节决定，也会被混进同一批的 prefill 拖慢。vLLM 指标里现在叫 inter_token_latency。",
+    r:[["vLLM V1 metrics 设计文档","https://docs.vllm.ai/en/latest/design/metrics/","引擎侧指标怎么算"]]},
+  e2e:{col:2,t:"E2E 时延",s:"TTFT + TPOT × (n_out−1)",
+    d:"一个请求从进到出的总时间，n_out 是输出 token 数。输出越长，越由 decode 主导。",
+    r:[["LLM Inference Performance Engineering（Databricks）","https://www.databricks.com/blog/llm-inference-performance-engineering-best-practices",""]]},
+  tput:{col:2,t:"吞吐",s:"tokens/s、并发数",
+    d:"整机每秒产出的 token 数。权重读取占主导时，decode 单步时延对 batch 不敏感，batch 越大吞吐越高；上下文一长，每多一个请求就多读一份 KV，单步时延跟着 batch 涨，收益递减。能开多大 batch，基本由 KV Cache 占多少显存决定。注意 tokenizer 不同，tok/s 跨模型不可比。",
+    r:[["Comparing tokens per second across LLMs（Baseten）","https://www.baseten.co/blog/comparing-tokens-per-second-across-llms/","tokenizer 差 15–26%"]]},
+  goodput:{col:2,t:"Goodput",s:"满足 SLO 的吞吐",
+    d:"只统计 TTFT 和 TPOT 都满足 SLO 的请求。吞吐翻倍但 P99 TTFT 从 1 秒涨到 30 秒，对用户是净负向，goodput 能看出来，吞吐看不出来。PD 分离类工作的标准指标。",
+    r:[["DistServe",AX+"2401.09670","goodput 的定义者"],
+       ["Revisiting SLO and Goodput Metrics",AX+"2410.14257","指标本身也能被玩"]]},
+
+  b_compute:{col:3,t:"算力",s:"compute-bound",
+    d:"长 prompt 的 prefill、超大 batch 都会撞上算力墙。这时降低精度用更快的 Tensor Core、把计算分到多卡才有用。",
+    r:[["Roofline: An Insightful Visual Performance Model","https://cacm.acm.org/research/roofline-an-insightful-visual-performance-model-for-multicore-architectures/","roofline 原始论文"]]},
+  b_bw:{col:3,t:"访存带宽",s:"memory-bound",
+    d:"decode 每步都要把权重和 KV 从 HBM 读一遍，算单元大部分时间在等数据。思路只有三条：少读（压 KV、量化）、读一次多用（batch 摊权重、投机解码）、少走 HBM（算子融合）。",
+    r:[["How To Scale Your Model：Roofline 一章","https://jax-ml.github.io/scaling-book/roofline/",""],
+       ["LLM Inference Unveiled",AX+"2402.16363",""]]},
+  b_cap:{col:3,t:"显存容量",s:"KV 放不下",
+    d:"KV Cache 随 batch × 上下文长度线性增长，显存装不下就只能减 batch 或截上下文，吞吐和长上下文能力一起受限。",
+    r:[["Transformer Inference Arithmetic（kipply）","https://kipp.ly/p/transformer-inference-arithmetic",""]]},
+  b_frag:{col:3,t:"碎片与重复计算",s:"显存没用好",
+    d:"按最大长度预分配会留下大量空洞；多个请求共享同一段 system prompt，却各自重算、各存一份。显存不是不够，是没用好。",
+    r:[["PagedAttention",AX+"2309.06180","论文里量化了预分配造成的浪费"]]},
+  b_sched:{col:3,t:"调度互相干扰",s:"长短请求、两阶段混跑",
+    d:"静态 batch 里短请求要等长请求；一个长 prefill 插进 decode 批，这一步所有 decode 都被拖慢（generation stall）。prefill 和 decode 抢同一组卡。",
+    r:[["Orca（OSDI'22）","https://www.usenix.org/conference/osdi22/presentation/yu","没有 arXiv 版"]]},
+  b_host:{col:3,t:"CPU 与 launch 开销",s:"overhead-bound",
+    d:"小 batch decode 时单个 kernel 只跑几微秒，CPU 侧的调度、准备输入、逐个 launch kernel 反而成了大头，GPU 在 kernel 之间空转。既不是算力也不是带宽的问题，加卡、换 HBM 都没用。经验法则：GPU 利用率低于 80%、又有大量小 launch，就是这一类。",
+    r:[["Making Deep Learning Go Brrrr From First Principles","https://horace.io/brrr_intro.html","compute / bandwidth / overhead 三分法"],
+       ["Host overhead is killing your inference efficiency（Modal）","https://modal.com/blog/host-overhead-inference-efficiency","诊断方法与实测"]]},
+  b_scale:{col:3,t:"单卡装不下",s:"模型或上下文太大",
+    d:"权重、KV 或单次 prefill 的计算量超过一张卡的能力，只能切到多卡，随之而来的是通信开销（见下一格）。",
+    r:[["Ultra-Scale Playbook（HF）","https://huggingface.co/spaces/nanotron/ultrascale-playbook","各种并行的图解"]]},
+  b_comm:{col:3,t:"卡间通信",s:"all-reduce、all-to-all、KV 传输",
+    d:"切到多卡后，TP 每层两次 all-reduce，EP 每个 MoE 层一次 dispatch 一次 combine（all-to-all），PD 分离还要把 KV 从 prefill 卡传到 decode 卡。decode 每次通信只有几 KB，拼的是延迟和跳数而不是带宽，所以 TP 跨出 NVLink 域对 TPOT 很伤。",
+    r:[["Demystifying NCCL",AX+"2507.04786","协议、算法选择与调优模型"],
+       ["SGLang 96×H100 大规模 EP 实录","https://lmsys.org/blog/2025-05-05-large-scale-ep/","EP 通信与重叠的工程细节"]]},
+  f_attn:{col:4,fam:1,t:"改注意力结构",s:"从源头少存 KV",up:["b_bw","b_cap"],
+    d:"KV 公式里的 KV 头数这一项是模型结构定的。MQA、GQA 直接砍头数，MLA 换成存低秩 latent，稀疏注意力不减存储、只减每步读取量。这一类要在训练前定好，推理侧改不了。",
+    items:[
+      {id:"mqa",t:"MQA",g:["tpot","tput"],d:"所有 query 头共用 1 组 K/V，KV 直降 n_heads 倍。",cost:"GQA 论文指出 MQA 会掉质量、训练也可能不稳。PaLM、Falcon 用过，新的大模型基本转向 GQA 或 MLA。",r:[["Fast Transformer Decoding: One Write-Head is All You Need",AX+"1911.02150","Shazeer 2019"]]},
+      {id:"gqa",t:"GQA",g:["tpot","tput"],d:"query 头分组，每组共享一组 K/V，是 MHA 和 MQA 的折中，当前工业界默认。Llama-3.1-70B 是 64 个 query 头配 8 个 KV 头，KV 缩 8 倍。",cost:"TP 卡数超过 KV 头数后，KV 头只能在卡间复制。",r:[["GQA",AX+"2305.13245",""],["Helix Parallelism",AX+"2507.07120","讨论 TP > KV 头数后的复制问题"]]},
+      {id:"mla",t:"MLA",g:["tpot","tput"],d:"缓存低秩 latent 加一个解耦的 RoPE key，DeepSeek-V2 每 token 每层只存 576 个数，KV Cache 比 DeepSeek 67B 少 93.3%。",cost:"省下的带宽用上投影的算力换；latent 维度不像 head 那样好按 TP 切。",r:[["DeepSeek-V2（MLA）",AX+"2405.04434",""],["FlashMLA","https://github.com/deepseek-ai/FlashMLA","参考 kernel"]]},
+      {id:"cla",t:"跨层共享 KV",g:["tput"],d:"相邻层共用一份 KV。Character.AI 把 MQA、跨层共享和 int8 KV 叠起来，做到 20 倍以上的缩减。",cost:"落地少，需要训练时就设计好。",r:[["Cross-Layer Attention",AX+"2405.12981",""],["Optimizing AI Inference at Character.AI","https://blog.character.ai/optimizing-ai-inference-at-character-ai/","少见的生产数据"]]},
+      {id:"sparse",t:"稀疏注意力",up:["b_bw","b_compute"],g:["tpot","ttft"],d:"每步只读一部分 KV。NSA、MoBA 是原生可训练路线，DeepSeek-V3.2 的 DSA 用 lightning indexer 选 token。",cost:"存储量不变；为一次性 prefill 设计的稀疏 mask 在 chunked prefill 下会失效。",r:[["NSA",AX+"2502.11089","DeepSeek，ACL 2025"],["MoBA",AX+"2502.13189","Moonshot"],["DeepSeek-V3.2（DSA）",AX+"2512.02556",""],["The Sparse Frontier",AX+"2504.17768","反面证据"]]}
+    ]},
+  f_kvc:{col:4,fam:1,t:"压缩已有的 KV",s:"量化、丢弃、低秩",up:["b_cap","b_bw"],
+    d:"模型结构不动，推理时把 KV 存得更省：降精度，或者只留重要的 token。",
+    items:[
+      {id:"kvfp8",t:"KV FP8 / 量化",g:["tput","tpot"],d:"KV 用 FP8 甚至 4 bit 存。KIVI 发现 key 要按 channel 量化、value 按 token 量化，这个不对称是硬件路径的设计约束。",cost:"vLLM 实测每 token KV 只降到 BF16 的 54%（多出的是 scales）；未校准的 KV scale 默认 1.0，是生产里最常见的精度坑。",r:[["KIVI",AX+"2402.02750",""],["KVQuant",AX+"2401.18079","pre-RoPE key 量化"],["The State of FP8 KV-Cache（vLLM 博客）","https://vllm.ai/blog/2026-04-22-fp8-kvcache",""]]},
+      {id:"evict",t:"驱逐 / 选择",g:["tput"],d:"只保留重要 token 的 KV：StreamingLLM 留开头的 attention sink 加滑窗，H2O 留累计注意力高的，SnapKV 按观察窗口挑。",cost:"有损，长文检索类任务容易掉点。",r:[["StreamingLLM",AX+"2309.17453","attention sink"],["H2O",AX+"2306.14048",""],["SnapKV",AX+"2404.14469",""],["NVIDIA/kvpress","https://github.com/NVIDIA/kvpress","各种压缩方法的统一实现"]]},
+      {id:"lowrank",t:"低秩",g:["tput"],d:"把已有模型的 KV 投到低维空间存。",cost:"需要额外的投影计算。",r:[["Palu",AX+"2407.21118",""],["xKV（跨层）",AX+"2503.18893",""]]}
+    ]},
+  f_mem:{col:4,fam:1,t:"管好 KV 显存",s:"分页、复用、分层",up:["b_frag","b_cap"],
+    d:"不减 KV 的总量，而是消灭浪费：按块分配消除碎片，相同前缀只算一次、只存一份，放不下的挪到 CPU 内存或远端存储。",
+    items:[
+      {id:"paged",t:"PagedAttention",up:["b_frag","b_cap"],g:["tput"],d:"像操作系统分页一样，把 KV 切成固定大小的块，用 block table 记录逻辑位置到物理块的映射，按需分配，碎片几乎为零。vLLM 的起点。",cost:"attention kernel 要能按 block table 间接寻址。",r:[["PagedAttention（vLLM）",AX+"2309.06180",""],["vAttention",AX+"2405.04437","反面立场：用虚拟内存实现连续 KV"]]},
+      {id:"prefix",t:"Prefix Cache",up:["b_frag"],g:["ttft","tput"],d:"多个请求共享同一段前缀（system prompt、多轮历史）时，直接复用已算好的 KV 块。vLLM 用块哈希链，SGLang 用 radix tree（RadixAttention）。",cost:"多租户下是计时侧信道，要用 cache salt 隔离。",r:[["SGLang（RadixAttention 在这篇里）",AX+"2312.07104","没有独立论文"],["vLLM automatic prefix caching 设计文档","https://docs.vllm.ai/en/latest/design/prefix_caching/",""],["Prompt Leakage via KV-Cache Sharing（NDSS'25）","https://www.ndss-symposium.org/ndss-paper/i-know-what-you-asked-prompt-leakage-via-kv-cache-sharing-in-multi-tenant-llm-serving/","安全面"]]},
+      {id:"offload",t:"KV 分层 / 卸载",up:["b_cap","b_frag"],g:["ttft","tput"],d:"把 KV 存到 CPU 内存、SSD 或远端池子，命中时搬回来，比重算 prefill 便宜。",cost:"搬运带宽成为新瓶颈，要和计算重叠。",r:[["Mooncake（FAST'25）","https://www.usenix.org/conference/fast25/presentation/qin","KVCache 为中心的分离式架构"],["LMCache",AX+"2510.09665",""],["CachedAttention",AX+"2403.19708","ATC'24"]]}
+    ]},
+  f_sched:{col:4,fam:1,t:"调度",s:"谁和谁一起跑",up:["b_sched","b_bw"],
+    d:"权重读取占主导时，decode 单步时延对 batch 不敏感，把更多请求塞进同一步就是白赚的吞吐。难点是 prefill 和 decode 混在一起会互相拖累，以及调度器本身在 CPU 上花的时间。",
+    items:[
+      {id:"cb",t:"Continuous Batching",up:["b_sched","b_bw"],g:["tput","ttft"],d:"每做完一次前向就重新组批，完成的立即返回，新来的立即插入（iteration-level scheduling）。Anyscale 实测吞吐最高 23 倍。",cost:"attention 要能吃变长序列（selective batching）。",r:[["Orca（OSDI'22）","https://www.usenix.org/conference/osdi22/presentation/yu",""],["Continuous batching：23x（Anyscale）","https://www.anyscale.com/blog/continuous-batching-llm-inference",""]]},
+      {id:"chunk",t:"Chunked Prefill",up:["b_sched"],g:["tpot","goodput"],b:["ttft"],d:"把长 prefill 切成固定大小的块，和 decode 拼在同一批里跑，消除 generation stall，TPOT 更平稳。现在默认开启。",cost:"单个请求的 TTFT 会略长；attention kernel 要支持 chunk query 对更长已缓存 KV 的混合形状。",r:[["SARATHI",AX+"2308.16369",""],["Sarathi-Serve",AX+"2403.02310","OSDI'24"]]},
+      {id:"pd",t:"PD 分离",up:["b_sched"],g:["ttft","tpot","goodput"],d:"prefill 和 decode 放到不同的卡上，各自按自己的瓶颈配置，KV 通过网络传过去。",cost:"不提升吞吐（vLLM 文档原话），是 TTFT 和尾延迟工具；多了 KV 传输。",r:[["DistServe",AX+"2401.09670",""],["Splitwise",AX+"2311.18677",""],["Mooncake（FAST'25）","https://www.usenix.org/conference/fast25/presentation/qin",""]]},
+      {id:"overlap",t:"重叠调度",up:["b_host"],g:["tpot","tput"],d:"GPU 跑第 k 步的时候，CPU 已经在准备第 k+1 步的 batch，把调度开销藏到 GPU 计算后面，GPU 不再在两步之间空等。SGLang v0.4 的零开销调度器是代表。",cost:"下一步的 batch 要在本步采样结果出来前定好，停止判断和结构化输出要多绕一步。",r:[["SGLang v0.4：零开销调度器","https://lmsys.org/blog/2024-12-04-sglang-v0-4",""],["Inside vLLM（Aleksa Gordić）","https://aleksagordic.com/blog/vllm","引擎一步里 CPU 都在做什么"]]}
+    ]},
+  f_kernel:{col:4,fam:1,t:"算子",s:"少走 HBM、少 launch",up:["b_bw","b_compute"],
+    d:"不改算法结果，只改计算在芯片上怎么排：分块放进片上 SRAM、融合算子、把 decode 的并行度补回来，以及把一整步的 kernel 打包提交，省掉 CPU 逐个 launch 的开销。",
+    items:[
+      {id:"fa",t:"FlashAttention",up:["b_bw","b_compute"],g:["ttft"],d:"用 online softmax 把注意力分块在片上算完，不把 L×L 的分数矩阵写回 HBM。prefill 的标配，FA2/FA3/FA4 跟着硬件迭代。",cost:"每代硬件都要重写。",r:[["FlashAttention",AX+"2205.14135",""],["FlashAttention-2",AX+"2307.08691",""],["FlashAttention-3",AX+"2407.08608","Hopper"],["From Online Softmax to FlashAttention","https://courses.cs.washington.edu/courses/cse599m/23sp/notes/flashattn.pdf","十页推导笔记"]]},
+      {id:"fd",t:"Flash-Decoding",up:["b_bw"],g:["tpot"],d:"decode 时 query 只有 1 行，按 head 和 batch 并行填不满芯片。沿 KV 长度再切一刀（split-KV），各块算局部结果，最后用 LSE 合并。",cost:"多一次归约。",r:[["Flash-Decoding（PyTorch 博客）","https://pytorch.org/blog/flash-decoding/",""],["FlashDecoding++",AX+"2311.01282",""]]},
+      {id:"finfer",t:"FlashInfer",up:["b_bw","b_frag"],g:["tpot","tput"],d:"面向 serving 的注意力库：paged KV、变长 batch、共享前缀（cascade）都在一个可组合的 kernel 体系里。",cost:"",r:[["FlashInfer",AX+"2501.01005",""],["Cascade Inference","https://flashinfer.ai/2024/02/02/cascade-inference.html","共享前缀的分层注意力"]]},
+      {id:"graph",t:"CUDA Graph",up:["b_host"],g:["tpot"],d:"把一整步 decode 的 kernel 序列录成一张图，之后一次提交整张重放，省掉逐个 launch 的 CPU 开销。vLLM V1 默认 FULL_AND_PIECEWISE：纯 decode 批录整图，prefill 和混合批分段录。走到头是 megakernel，把整步融成一个 kernel。",cost:"只能重放固定形状，要按 batch size 预录多份，占显存、拖慢启动；图里的 kernel 在 profiler trace 里不好归因。",r:[["vLLM CUDA Graphs 设计文档","https://docs.vllm.ai/en/latest/design/cuda_graphs/","几种 capture 模式的取舍"],["Look Ma, No Bubbles!（Hazy Research）","https://hazyresearch.stanford.edu/blog/2025-05-27-no-bubbles","megakernel，launch 开销占主导的演示"]]}
+    ]},
+  f_spec:{col:4,fam:1,t:"减少 decode 步数",s:"一次出多个 token",up:["b_bw"],
+    d:"本质是抬高算术强度：一次前向验证 K 个候选 token，等效 batch 放大 K 倍。所以只在访存受限时有效，高 batch 下收益会归零甚至变负。",
+    items:[
+      {id:"sd",t:"投机解码",g:["tpot"],b:["tput"],d:"小模型先猜 K 个 token，大模型一次前向验证，按修正的拒绝采样保证输出分布不变。",cost:"高 batch 下收益消失；验证规则实现错了不会崩，只会静默改变输出分布。",r:[["Leviathan et al.",AX+"2211.17192","draft-then-verify 框架"],["Chen et al.（DeepMind）",AX+"2302.01318","分布等价性证明"],["SpeculativeDecodingPapers","https://github.com/hemingkx/SpeculativeDecodingPapers","论文清单"]]},
+      {id:"eagle",t:"Medusa / EAGLE",g:["tpot"],d:"不用独立小模型，在大模型上挂轻量预测头，用树形候选一次验证多条路径。EAGLE 家族是目前的主流方案。",cost:"要额外训练预测头；tree attention 是不规则 mask。",r:[["Medusa",AX+"2401.10774",""],["EAGLE",AX+"2401.15077",""],["EAGLE-3",AX+"2503.01840","报了 batch=64 下的收益"]]},
+      {id:"mtp",t:"MTP",g:["tpot"],d:"训练时就让模型多预测几个 token，推理时这些头直接当 draft。DeepSeek-V3 的做法。",cost:"要在预训练阶段加。",r:[["DeepSeek-V3 技术报告",AX+"2412.19437",""]]}
+    ]},
+  f_par:{col:4,fam:1,t:"并行",s:"切到多张卡",up:["b_scale","b_cap","b_compute"],
+    d:"一张卡不够时按不同维度切：TP 切层内矩阵，PP 切层，EP 切专家，CP 切序列。切哪一维决定通信形状，通信能不能藏到计算后面决定切了值不值。",
+    items:[
+      {id:"tp",t:"TP / PP",up:["b_scale","b_compute"],g:["tpot","tput"],d:"TP 把每层的矩阵按列/行切到多卡，每层要 all-reduce；PP 按层切，卡间只传激活。",cost:"TP 通信频繁，一般限制在一台机器内。",r:[["Megatron-LM",AX+"1909.08053",""],["Ultra-Scale Playbook（HF）","https://huggingface.co/spaces/nanotron/ultrascale-playbook",""]]},
+      {id:"ep",t:"EP（MoE）",up:["b_scale","b_cap"],g:["tput"],d:"把 MoE 的专家分到不同卡，token 按路由 all-to-all 发过去。大规模 EP 加 PD 分离已经是 DeepSeek 类模型的标配部署。",cost:"all-to-all 通信和专家负载不均。",r:[["SGLang 96×H100 大规模 EP 实录","https://lmsys.org/blog/2025-05-05-large-scale-ep/",""],["DeepEP","https://github.com/deepseek-ai/DeepEP","EP 通信库"],["EPLB","https://github.com/deepseek-ai/EPLB","专家负载均衡"]]},
+      {id:"cp",t:"CP（PCP / DCP）",up:["b_scale","b_cap","b_compute"],g:["ttft","tput"],d:"沿序列维切。PCP 把长 prompt 的 prefill 分到多卡算，是为了算得快；DCP 把 KV 按 token 分散存在 TP 组里，消除 KV 复制，是为了存得下。",cost:"PCP 有 causal 负载不均；DCP 每层多一次 AllGather + ReduceScatter。",r:[["Ring Attention",AX+"2310.01889",""],["Striped Attention",AX+"2311.09431","causal 负载均衡"],["vLLM Context Parallel 部署文档","https://docs.vllm.ai/en/stable/serving/context_parallel_deployment/",""]]},
+      {id:"commov",t:"通信计算重叠",up:["b_comm"],g:["tpot","tput"],d:"把 batch 切成两个微批交替跑，一个在算、另一个在通信（SGLang 的 TBO、vLLM 的 DBO）；或者更细一层，把通信直接融进 GEMM 的 epilogue（FLUX）。",cost:"微批切得不均，重叠就被打破；每个 GEMM 变小，算力利用率会降。",r:[["FLUX",AX+"2406.06858","通信融进 GEMM，最多隐藏 96%"],["vLLM Dual Batch Overlap 设计文档","https://docs.vllm.ai/en/latest/design/dbo/",""],["SGLang issue #6328","https://github.com/sgl-project/sglang/issues/6328","微批不均导致重叠失效的实录"]]}
+    ]},
+  f_wq:{col:4,fam:1,t:"权重与激活量化",s:"让每字节更值钱",up:["b_bw","b_compute"],
+    d:"decode 每步都读一遍权重，权重位宽减半，读取量就减半；激活也量化后，还能用更快的低精度 Tensor Core。",
+    items:[
+      {id:"wonly",t:"W4A16（GPTQ / AWQ）",up:["b_bw"],g:["tpot"],d:"只量化权重，计算时解包回 FP16。小 batch decode 收益最大。",cost:"大 batch 时解包开销显现，收益变小。",r:[["GPTQ",AX+"2210.17323",""],["AWQ",AX+"2306.00978",""]]},
+      {id:"w8a8",t:"W8A8 / FP8",g:["ttft","tput","tpot"],d:"权重和激活都量化，矩阵乘直接跑低精度。SmoothQuant 把激活离群值的难度挪到权重上，DeepSeek-V3 用细粒度 block FP8。",cost:"激活离群值；要看任务掉点，别只看 perplexity。",r:[["SmoothQuant",AX+"2211.10438",""],["DeepSeek-V3 技术报告（FP8）",AX+"2412.19437",""],["Accuracy-Performance Trade-Offs in LLM Quantization",AX+"2411.02355","大规模评测"],["llm-compressor","https://github.com/vllm-project/llm-compressor","工具"]]}
+    ]}
+};
+
+// 主干连线：上游 → 下游
+const E = [
+  ["transformer","decoder"],["decoder","kv"],["kv","prefill"],["kv","decode"],
+  ["prefill","ttft"],["prefill","e2e"],["decode","tpot"],["decode","e2e"],["decode","tput"],
+  ["ttft","goodput"],["tpot","goodput"],
+  ["ttft","b_compute"],["ttft","b_sched"],["ttft","b_frag"],["ttft","b_scale"],
+  ["tpot","b_bw"],["tpot","b_sched"],["tpot","b_scale"],
+  ["e2e","b_bw"],["e2e","b_compute"],
+  ["tput","b_bw"],["tput","b_cap"],["tput","b_frag"],["tput","b_sched"],["tput","b_scale"],
+  ["goodput","b_sched"],
+  ["tput","b_compute"],
+  ["tpot","b_host"],["tput","b_host"],
+  ["b_scale","b_comm"],["ttft","b_comm"],["tpot","b_comm"],["tput","b_comm"],
+];
+// 方向的上游 = 自己声明的 + 下属方法各自的瓶颈，保证方法高亮时连线都在
+Object.values(N).forEach(n=>{ if(n.items) n.up=[...new Set([...(n.up||[]),...n.items.flatMap(it=>it.up||[])])]; });
+Object.entries(N).forEach(([id,n])=>(n.up||[]).forEach(u=>E.push([u,id])));
+
+const ITEM = {};
+Object.entries(N).forEach(([fid,n])=>(n.items||[]).forEach(it=>{it.fam=fid; ITEM[it.id]=it;}));
+
+const map = document.getElementById("map"), svg = document.getElementById("wires"), panel = document.getElementById("panel"), live = document.getElementById("live");
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const el = {};
+
+// 列与节点
+COLS.forEach((title,ci)=>{
+  const col = document.createElement("div"); col.className="col";
+  col.innerHTML = `<div class="col-title">${title}</div>`;
+  Object.entries(N).filter(([,n])=>n.col===ci).forEach(([id,n])=>{
+    const b = document.createElement(n.fam?"div":"button");
+    b.dataset.id = id;
+    if(n.fam){
+      b.className="node fam";
+      b.innerHTML = `<button class="fh" data-id="${id}">${esc(n.t)}<small>${esc(n.s)}</small></button>
+        <div class="chips">${n.items.map(it=>`<button class="chip" data-item="${it.id}">${esc(it.t)}</button>`).join("")}</div>`;
+    }else{
+      b.className = "node "+KIND[ci][1];
+      b.innerHTML = `${esc(n.t)}<small>${esc(n.s)}</small>`;
+    }
+    el[id]=b; col.appendChild(b);
+  });
+  map.appendChild(col);
+});
+
+function drawWires(){
+  const R = map.getBoundingClientRect();
+  svg.innerHTML = E.map(([a,b])=>{
+    const A = el[a].getBoundingClientRect(), B = el[b].getBoundingClientRect();
+    let d;
+    if(N[a].col===N[b].col){
+      const x1=A.right-R.left, y1=A.top+A.height/2-R.top, x2=B.right-R.left, y2=B.top+B.height/2-R.top, bx=Math.max(x1,x2)+34;
+      d=`M${x1},${y1} C${bx},${y1} ${bx},${y2} ${x2},${y2}`;
+    }else{
+      const x1=A.right-R.left, y1=A.top+A.height/2-R.top, x2=B.left-R.left, y2=B.top+Math.min(B.height/2,22)-R.top, m=(x1+x2)/2;
+      d=`M${x1},${y1} C${m},${y1} ${m},${y2} ${x2},${y2}`;
+    }
+    return `<path class="edge" data-a="${a}" data-b="${b}" d="${d}"/>`;
+  }).join("");
+}
+
+function walk(start, dir, maxCol=4){ // dir: "up" | "down"；maxCol 限制往下走到第几列
+  const seen=new Set([start]), q=[start];
+  while(q.length){const c=q.shift(); E.forEach(([a,b])=>{const nx = dir==="up"?(b===c?a:null):(a===c?b:null); if(nx&&!seen.has(nx)&&N[nx].col<=maxCol){seen.add(nx);q.push(nx);}});}
+  return seen;
+}
+
+function clear(){
+  map.classList.remove("focus");
+  map.querySelectorAll(".lit,.sel,.good,.bad,.on,.dim").forEach(x=>x.classList.remove("lit","sel","good","bad","on","dim"));
+  svg.querySelectorAll(".edge").forEach(p=>p.classList.remove("lit"));
+}
+function light(set){
+  map.classList.add("focus");
+  set.forEach(id=>el[id].classList.add("lit"));
+  svg.querySelectorAll(".edge").forEach(p=>{ if(set.has(p.dataset.a)&&set.has(p.dataset.b)) p.classList.add("lit"); });
+}
+const refs = r => `<ul class="refs">${r.map(([t,u,n])=>`<li><a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a>${n?`<span>${esc(n)}</span>`:""}</li>`).join("")}</ul>`;
+const chainOf = id => { const up=[...walk(id,"up")].filter(x=>x!==id).sort((a,b)=>N[a].col-N[b].col); return up.length?`<div class="chain"><b>来路</b>：${up.map(x=>esc(N[x].t)).join("，")}</div>`:""; };
+
+function showNode(id, from){
+  clear(); panel.classList.remove("idle","folded"); panel.scrollTop=0; const n=N[id];
+  // 上游全部 + 下游只走一层（根源节点放宽到两个阶段），避免点左列时全图都亮
+  const cap = Math.max(n.col+1, 1);
+  const set = new Set([...walk(id,"up"),...walk(id,"down",cap)]);
+  light(set); el[id].classList.add("sel");
+  if(n.fam) el[id].querySelectorAll(".chip").forEach(c=>c.classList.remove("dim"));
+  const kids = n.items ? `<h3>包含</h3><div class="sub">${n.items.map(it=>`<button class="chip" data-item="${it.id}">${esc(it.t)}</button>`).join("")}</div>` : "";
+  const down = !n.fam ? [...walk(id,"down")].filter(x=>N[x].fam) : [];
+  const fams = down.length && N[id].col<4 ? `<h3>对应的优化方向</h3><div class="sub">${down.map(f=>`<button class="chip" data-goto="${f}">${esc(N[f].t)}</button>`).join("")}</div>` : "";
+  panel.innerHTML = `${bar()}<span class="kind ${KIND[n.col][1]}">${n.fam?"优化方向":KIND[n.col][0]}</span>
+    <h2 tabindex="-1">${esc(n.t)}</h2>${chainOf(id)}<p>${esc(n.d)}</p>${kids}${fams}<h3>学习资料</h3>${refs(n.r||[])}`;
+  after(id, n.t, from);
+}
+
+function showItem(iid, from){
+  clear(); panel.classList.remove("idle","folded"); panel.scrollTop=0; const it=ITEM[iid], fid=it.fam, ups=it.up||N[fid].up;
+  const set = new Set([fid]); ups.forEach(u=>walk(u,"up").forEach(x=>set.add(x))); light(set);
+  el[fid].classList.add("sel");
+  el[fid].querySelectorAll(".chip").forEach(c=>{ if(c.dataset.item===iid) c.classList.add("on"); else c.classList.add("dim"); });
+  (it.g||[]).forEach(m=>el[m].classList.add("good"));
+  (it.b||[]).forEach(m=>{el[m].classList.remove("good"); el[m].classList.add("bad");});
+  const tags = [...(it.g||[]).map(m=>`<span class="tag g">改善 ${esc(N[m].t)}</span>`),...(it.b||[]).map(m=>`<span class="tag b">可能变差 ${esc(N[m].t)}</span>`)].join("");
+  panel.innerHTML = `${bar()}<span class="kind l1">${esc(N[fid].t)}</span>
+    <h2 tabindex="-1">${esc(it.t)}</h2><div class="chain"><b>解决的瓶颈</b>：${ups.map(u=>esc(N[u].t)).join("，")}</div>
+    <div class="fx">${tags}</div><p>${esc(it.d)}</p>${it.cost?`<p class="cost"><b>代价</b>：${esc(it.cost)}</p>`:""}
+    <h3>学习资料</h3>${refs(it.r)}`;
+  const g=(it.g||[]).map(m=>N[m].t), b=(it.b||[]).map(m=>N[m].t);
+  after(fid, it.t+(g.length?`，改善 ${g.join("、")}`:"")+(b.length?`，可能变差 ${b.join("、")}`:""), from, el[fid].querySelector(`[data-item="${iid}"]`));
+}
+
+// 面板顶部按钮；窄屏多一个收起
+const bar = () => `<div class="bar"><button class="fold" data-fold aria-expanded="true">收起</button><button class="close" data-close>取消选中</button></div>`;
+let last = null; // 最近一次在图上被选中的元素，Esc 后把焦点还回去
+function after(id, label, from, target){
+  live.textContent = "已选中：" + label;
+  const node = target || el[id].querySelector(".fh") || el[id];
+  last = node;
+  if(from && panel.contains(from)) panel.querySelector("h2").focus({preventScroll:true}); // 在面板里点的，焦点留在面板
+  node.scrollIntoView({block:"nearest", inline:"nearest", behavior: matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth"});
+}
+
+function intro(){
+  const wasSel = map.classList.contains("focus");
+  clear(); panel.classList.add("idle"); panel.classList.remove("folded"); panel.scrollTop=0;
+  panel.innerHTML = `<h2 tabindex="-1">怎么读这张图</h2>
+    <p>最左边是根源。现在的大模型几乎都是 decoder-only 的 Transformer，生成只能一个 token 一个 token 地往后走，于是有了 KV Cache，推理也被分成 prefill 和 decode 两个阶段。</p>
+    <p>两个阶段分别决定了不同的指标：prefill 决定 TTFT，decode 决定 TPOT 和吞吐。指标上不去，总是卡在某个具体瓶颈上，比如 decode 卡访存带宽，开大 batch 卡显存容量，batch 很小时还可能卡在 CPU 发 kernel 的开销上。</p>
+    <p>最右边是针对这些瓶颈的优化方法，按方向分组。点一个具体方法，左边的指标上会出现标记：<span class="tag g">✓ 改善</span> <span class="tag b">! 可能变差</span>。</p>
+    <h3>通读材料</h3>${refs([
+      ["How To Scale Your Model（Inference 一章）","https://jax-ml.github.io/scaling-book/inference/","从 roofline 推到 serving"],
+      ["LLM Inference Performance Engineering（Databricks）","https://www.databricks.com/blog/llm-inference-performance-engineering-best-practices","指标与 MBU"],
+      ["Inside vLLM（Aleksa Gordić）","https://aleksagordic.com/blog/vllm","一个推理引擎把上面这些串起来的样子"],
+      ["nano-vllm","https://github.com/GeeeekExplorer/nano-vllm","千行级的最小实现"]])}`;
+  if(wasSel){ live.textContent = "已取消选中"; if(last && document.contains(last)) last.focus({preventScroll:true}); }
+}
+
+document.addEventListener("click",e=>{
+  const t=e.target.closest("[data-item],[data-id],[data-goto],[data-close],[data-fold]");
+  if(!t) return;
+  if(t.dataset.fold!==undefined){ const f=panel.classList.toggle("folded"); t.setAttribute("aria-expanded", String(!f)); t.textContent = f?"展开":"收起"; return; }
+  if(t.dataset.close!==undefined) return intro();
+  if(t.dataset.item) return showItem(t.dataset.item, t);
+  if(t.dataset.goto) return showNode(t.dataset.goto, t);
+  if(t.dataset.id && !t.classList.contains("fam")) return showNode(t.dataset.id, t);
+});
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") intro(); });
+addEventListener("resize",drawWires);
+document.fonts && document.fonts.ready.then(drawWires);
+drawWires(); intro();
+</script>
+</body>
+</html>
